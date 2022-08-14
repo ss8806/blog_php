@@ -68,6 +68,7 @@
     }
   }
 ?>
+<!-- backend.phpのクエリパラメータのリンクからこのページに遷移されてる -->
 <!doctype html>
 <html lang="ja">
   <head>
