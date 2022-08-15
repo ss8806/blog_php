@@ -11,8 +11,15 @@ class Article{
   
   public function save(){
     $queryArticle = new QueryArticle();
+    // Articleクラスのインスタンスを受け取ったら、自身のパラメータとして保持する、という動きです。
     $queryArticle->setArticle($this);
     $queryArticle->save();
+  }
+
+  public function delete(){
+    $queryArticle = new QueryArticle();
+    $queryArticle->setArticle($this);
+    $queryArticle->delete();
   }
 
   public function getId(){
