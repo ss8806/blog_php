@@ -24,11 +24,7 @@ if (isset($_GET['id'])) {
     $id = $article->getId();
     $title = $article->getTitle();
     $body = $article->getBody();
-
-     // 画像がアップロードされていたとき
-    if (isset($_FILES['image']) && is_uploaded_file($_FILES['image']['tmp_name'])){
-      $article->setFile($_FILES['image']);
-    }
+    
   } else {
     // 編集する記事データが存在しないとき
     header('Location: backend.php');
@@ -45,6 +41,10 @@ if (isset($_GET['id'])) {
     // 記事データが存在していれば、タイトルと本文を変更して上書き保存
     $article->setTitle($title);
     $article->setBody($body);
+    // 画像がアップロードされていたとき
+    if (isset($_FILES['image']) && is_uploaded_file($_FILES['image']['tmp_name'])){
+      $article->setFile($_FILES['image']);
+    }
     $article->save();
   }
   header('Location: backend.php');
