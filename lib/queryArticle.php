@@ -124,51 +124,148 @@ class QueryArticle extends connect
     }
   }
 
-  private function deleteFile(){
-    if ($this->article->getFilename()){
-      unlink(__DIR__.'/../album/thumbs-'.$this->article->getFilename());
-      unlink(__DIR__.'/../album/'.$this->article->getFilename());
+  private function deleteFile()
+  {
+    if ($this->article->getFilename()) {
+      unlink(__DIR__ . '/../album/thumbs-' . $this->article->getFilename());
+      unlink(__DIR__ . '/../album/' . $this->article->getFilename());
     }
   }
 
-  public function delete(){
-    if ($this->article->getId()){
+  public function delete()
+  {
+    if ($this->article->getId()) {
       // 画像の削除
       $this->deleteFile();
       $id = $this->article->getId();
       $stmt = $this->dbh->prepare("UPDATE articles SET is_delete=1 WHERE id=:id");
       $stmt->bindParam(':id', $id, PDO::PARAM_INT);
       $stmt->execute();
-    }   
+    }
   }
+
+  // public function find($id)
+  // {
+  //   // $stmt = $this->dbh->prepare("SELECT * FROM articles WHERE id=:id");
+  //   $stmt = $this->dbh->prepare("SELECT * FROM articles WHERE id=:id AND is_delete=0");
+  //   $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+  //   $stmt->execute();
+  //   $result = $stmt->fetch(PDO::FETCH_ASSOC);
+  //   $article = null;
+
+  //   if ($result) {
+  //     $article = new Article();
+  //     $article->setId($result['id']);
+  //     $article->setTitle($result['title']);
+  //     $article->setBody($result['body']);
+  //     $article->setFilename($result['filename']);
+  //     $article->setCreatedAt($result['created_at']);
+  //     $article->setUpdatedAt($result['updated_at']);
+  //   }
+  //   return $article;
+  // }
+
+  // public function findAll()
+  // {
+  //   // $stmt = $this->dbh->prepare("SELECT * FROM articles");
+  //   $stmt = $this->dbh->prepare("SELECT * FROM articles WHERE is_delete=0 ORDER BY created_at DESC");
+  //   $stmt->execute();
+  //   $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+  //   $articles = array();
+  //   foreach ($results as $result) {
+  //     $article = new Article();
+  //     $article->setId($result['id']);
+  //     $article->setTitle($result['title']);
+  //     $article->setBody($result['body']);
+  //     $article->setFilename($result['filename']);
+  //     $article->setCreatedAt($result['created_at']);
+  //     $article->setUpdatedAt($result['updated_at']);
+  //     $articles[] = $article;
+  //   }
+  //   return $articles;
+  // }
 
   public function find($id)
   {
-    // $stmt = $this->dbh->prepare("SELECT * FROM articles WHERE id=:id");
     $stmt = $this->dbh->prepare("SELECT * FROM articles WHERE id=:id AND is_delete=0");
     $stmt->bindParam(':id', $id, PDO::PARAM_INT);
     $stmt->execute();
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-    $article = null;
-
-    if ($result) {
-      $article = new Article();
-      $article->setId($result['id']);
-      $article->setTitle($result['title']);
-      $article->setBody($result['body']);
-      $article->setFilename($result['filename']);
-      $article->setCreatedAt($result['created_at']);
-      $article->setUpdatedAt($result['updated_at']);
-    }
-    return $article;
+    $articles = $this->getArticles($stmt->fetchAll(PDO::FETCH_ASSOC));
+    return $articles[0];
   }
 
   public function findAll()
   {
-    // $stmt = $this->dbh->prepare("SELECT * FROM articles");
     $stmt = $this->dbh->prepare("SELECT * FROM articles WHERE is_delete=0 ORDER BY created_at DESC");
     $stmt->execute();
     $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $articles = $this->getArticles($stmt->fetchAll(PDO::FETCH_ASSOC));
+    return $articles;
+  }
+
+  public function getPager($page = 1, $limit = 10, $month = null)
+  {
+    // $start = ($page - 1) * $limit;  // LIMIT x, y：1ページ目を表示するとき、xは0になる
+    $page = ($page - 1) * $limit;  // LIMIT x, y：開始ページ数は0から
+    $pager = array('total' => null, 'articles' => null);
+
+    // 月指定があれば「2021-01%」のように検索できるよう末尾に追加
+    if ($month) {
+      $month .= '%';
+    }
+
+    // 総記事数
+    // $stmt = $this->dbh->prepare("SELECT COUNT(*) FROM articles WHERE is_delete=0");
+    // $stmt->execute();
+    // $pager['total'] = $stmt->fetchColumn();
+
+    if ($month){
+      $stmt = $this->dbh->prepare("SELECT COUNT(*) FROM articles WHERE is_delete=0 AND created_at LIKE :month"); 
+      $stmt->bindParam(':month', $month, PDO::PARAM_STR);
+    } else {
+      $stmt = $this->dbh->prepare("SELECT COUNT(*) FROM articles WHERE is_delete=0");
+    }   
+    $stmt->execute();
+    $pager['total'] = $stmt->fetchColumn();
+
+    // 表示するデータ
+    if ($month){
+      $stmt = $this->dbh->prepare("SELECT * FROM articles
+        WHERE is_delete=0 AND created_at LIKE :month
+        ORDER BY created_at DESC
+        LIMIT :start, :limit");
+      $stmt->bindParam(':month', $month, PDO::PARAM_STR);
+    } else {
+      $stmt = $this->dbh->prepare("SELECT * FROM articles
+        WHERE is_delete=0
+        ORDER BY created_at DESC
+        LIMIT :start, :limit");
+    }   
+    $stmt->bindParam(':start', $page, PDO::PARAM_INT);
+    $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
+    $stmt->execute();
+    $pager['articles'] = $this->getArticles($stmt->fetchAll(PDO::FETCH_ASSOC));
+    return $pager;
+  }
+
+  public function getMonthlyArchiveMenu()
+  {
+    $stmt = $this->dbh->prepare("
+      SELECT DATE_FORMAT(created_at, '%Y-%m') AS month_menu, COUNT(*) AS count
+      FROM articles
+      WHERE is_delete = 0
+      GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+      ORDER BY month_menu DESC");
+    $stmt->execute();
+    $return = array();
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+      $return[] = array('month' => $row['month_menu'], 'count' => $row['count']);
+    }
+    return $return;
+  }
+
+  private function getArticles($results)
+  {
     $articles = array();
     foreach ($results as $result) {
       $article = new Article();

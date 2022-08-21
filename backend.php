@@ -4,8 +4,17 @@ include 'lib/connect.php';
 include 'lib/queryArticle.php';
 include 'lib/article.php';
 
-$queryArticle = new QueryArticle(); // インスタンス化
-$articles = $queryArticle->findAll(); // データ取得メソッド
+$limit = 10;
+$page = 1;
+
+// ページ数の決定
+if (!empty($_GET['page']) && intval($_GET['page']) > 0) {
+  $page = intval($_GET['page']);
+}
+
+$queryArticle = new QueryArticle();
+// // $articles = $queryArticle->findAll(); // データ取得メソッド
+$pager = $queryArticle->getPager($page, $limit); // ページャー
 ?>
 <!doctype html>
 <html lang="ja">
@@ -68,7 +77,7 @@ $articles = $queryArticle->findAll(); // データ取得メソッド
 
         <h1>記事一覧</h1>
 
-        <?php if ($articles) : ?>
+        <?php if ($pager['articles']): ?>
           <table class="table table-bordered">
             <thead>
               <tr>
@@ -83,12 +92,12 @@ $articles = $queryArticle->findAll(); // データ取得メソッド
               </tr>
             </thead>
             <tbody>
-              <?php foreach ($articles as $article) : ?>
+              <?php foreach ($pager['articles'] as $article): ?>
                 <tr>
                   <td><?php echo $article->getId() ?></td>
                   <td><?php echo $article->getTitle() ?></td>
                   <td><?php echo $article->getBody() ?></td>
-                  <td><?php echo $article->getFilename()? '<img src="./album/thumbs-'.$article->getFilename().'">': 'なし' ?></td>
+                  <td><?php echo $article->getFilename() ? '<img src="./album/thumbs-' . $article->getFilename() . '">' : 'なし' ?></td>
                   <td><?php echo $article->getCreatedAt() ?></td>
                   <td><?php echo $article->getUpdatedAt() ?></td>
                   <td><a href="edit.php?id=<?php echo $article->getId() ?>" class="btn btn-success">編集</a></td>
@@ -103,12 +112,22 @@ $articles = $queryArticle->findAll(); // データ取得メソッド
           </div>
         <?php endif ?>
 
+        <?php if (!empty($pager['total'])) : ?>
+          <nav aria-label="Page navigation example">
+            <ul class="pagination">
+              <?php for ($i = 1; $i <= ceil($pager['total'] / $limit); $i++) : ?>
+                <li class="page-item"><a class="page-link" href="backend.php?page=<?php echo $i ?>"><?php echo $i ?></a></li>
+              <?php endfor ?>
+            </ul>
+          </nav>
+        <?php endif ?>
+
       </div>
 
     </div><!-- /.row -->
 
   </main><!-- /.container -->
-  <?php var_dump ($_FILES) ?>
+  <?php var_dump($_FILES) ?>
 </body>
 
 </html>

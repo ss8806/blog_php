@@ -3,27 +3,26 @@ include 'lib/connect.php';
 include 'lib/queryArticle.php';
 include 'lib/article.php';
 
-$limit = 5;
-$page = 1;
-$month = null;
-$title = "";
-
-// ページ数の決定
-if (!empty($_GET['page']) && intval($_GET['page']) > 0) {
-  $page = intval($_GET['page']);
-}
-
-// 月指定
-if (!empty($_GET['month'])) {
-  $month = $_GET['month'];
-  $title = $month . 'の投稿一覧';
-}
-
 $queryArticle = new QueryArticle();
-// ===== ↓getPagerの第三引数を追加↓ =====
-$pager = $queryArticle->getPager($page, $limit, $month);
+
+if (!empty($_GET['id'])) {
+  $id = intval($_GET['id']);
+  $article = $queryArticle->find($id);
+} else {
+  $article = null;
+}
 $monthly = $queryArticle->getMonthlyArchiveMenu();
+
+if (!empty($_GET['id'])) {
+  $id = intval($_GET['id']);
+
+  $queryArticle = new QueryArticle();
+  $article = $queryArticle->find($id);
+} else {
+  $article = null;
+}
 ?>
+
 
 <!doctype html>
 <html lang="ja">
@@ -72,41 +71,24 @@ $monthly = $queryArticle->getMonthlyArchiveMenu();
     <div class="row">
       <div class="col-md-8">
 
-        <!-- ↓$titleの表示処理 -->
-        <?php if (!empty($title)) : ?>
-          <h2><?php echo $title ?></h2>
-        <?php endif ?>
-
-        <?php if ($pager['articles']) : ?>
-          <?php foreach ($pager['articles'] as $article) : ?>
-            <article class="blog-post">
-              <h2 class="blog-post-title">
-                <a href="view.php?id=<?php echo $article->getId() ?>">
-                  <?php echo $article->getTitle() ?>
+        <?php if ($article) : ?>
+          <article class="blog-post">
+            <h2 class="blog-post-title"><?php echo $article->getTitle() ?></h2>
+            <p class="blog-post-meta"><?php echo $article->getCreatedAt() ?></p>
+            <?php echo nl2br($article->getBody()) ?>
+            <?php if ($article->getFilename()) : ?>
+              <div>
+                <a href="./album/<?php echo $article->getFilename() ?>" target="_blank">
+                  <img src="./album/thumbs-<?php echo $article->getFilename() ?>" class="img-fluid">
                 </a>
-              </h2>
-              <p class="blog-post-meta"><?php echo $article->getCreatedAt() ?></p>
-              <?php echo nl2br($article->getBody()) ?>
-            </article>
-          <?php endforeach ?>
+              </div>
+            <?php endif ?>
+          </article>
         <?php else : ?>
           <div class="alert alert-success">
             <p>記事はありません。</p>
           </div>
         <?php endif ?>
-
-        <?php if (!empty($pager['total'])) : ?>
-          <nav aria-label="Page navigation example">
-            <ul class="pagination">
-              <?php for ($i = 1; $i <= ceil($pager['total'] / $limit); $i++) : ?>
-                <!-- <li class="page-item"><a class="page-link" href="index.php?page=<?php echo $i ?>"><?php echo $i ?></a></li> -->
-                <!-- ↓ペーßジャーのリンクを変更↓ -->
-                <li class="page-item"><a class="page-link" href="index.php?page=<?php echo $i ?><?php echo $month ? '&month=' . $month : '' ?>"><?php echo $i ?></a></li>
-              <?php endfor ?>
-            </ul>
-          </nav>
-        <?php endif ?>
-
       </div>
 
       <div class="col-md-4">
